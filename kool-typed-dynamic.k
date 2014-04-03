@@ -548,6 +548,7 @@ Like in untyped KOOL. */
 
 /*@ \subsubsection{Class declaration}
 
+/*@ \subsubsection{Control Flow Generator}
 Like in untyped KOOL. */
 
   rule <k> class Class1 extends Class2 { S } => generateFlow(S) ~> "cleanBuffers" ...</k>
@@ -739,94 +740,6 @@ Like in untyped KOOL. */
   rule <code> S1:Stmts S2:Stmts => S1 ~> S2  ...</code> [structural]
 
 
-  //   rule <k> "generatingFlow" ...</k>
-  //        <buffer> S1:Stmt => . ...</buffer>
-  //        <currentMethod> F </currentMethod>
-  //        <currentClass> C </currentClass>
-  //        <prevNode> S => S1 </prevNode>
-  //        <method>
-  //         <classContainer> C </classContainer>
-  //         <methodName> F </methodName> 
-  //         <graph>... . => S |-> S1 </graph>
-  //        </method>
-
-  //   rule <k> "generatingControlFlow" ...</k>
-  //        <buffer> if ( E:Exp ) {S1:Stmt => . ...} else B:Block _</buffer>
-  //        <currentMethod> F </currentMethod>
-  //        <currentClass> C </currentClass>
-  //        <prevNode> S => S1 </prevNode>
-  //        <method>
-  //         <classContainer> C </classContainer>
-  //         <methodName> F </methodName> 
-  //         <graph>... . => S |-> S1 </graph>
-  //        </method>
-
-
-  //   rule <k> "generatingFlow" => . ...</k>
-  //        <buffer> . </buffer> 
-  //        <currentMethod> F </currentMethod>
-  //        <currentClass> C </currentClass>
-  //        <prevNode> S </prevNode>
-  //        <exitNode> S2 </exitNode>
-  //        <method>
-  //         <classContainer> C </classContainer>
-  //         <methodName> F </methodName> 
-  //         <graph>... . => S |-> S2 </graph>
-  //        </method>
-
-     
-
-
-  //               | "if" "(" Exp ")" Block "else" Block   [avoid, strict(1)]
-  //               | "if" "(" Exp ")" Block
-
-
-  // rule <k> methodControlFlow(S1:Stmt S2:Stmts) => methodControlFlow(S1 S2) ... </k> 
-  //      <currentMethod> F </currentMethod>
-  //      <currentClass> C </currentClass>
-  //      <method>
-  //         <classContainer> C </classContainer>
-  //         <methodName> F </methodName> 
-  //         <graph> . => "start" |-> S1 </graph>
-  //      </method>                                                        [structural]
-
-
-  // rule <k> methodControlFlow(S1:Stmt S2:Stmt S3) => methodControlFlow(S2 S3) ... </k> 
-  //      <currentMethod> F </currentMethod>
-  //      <currentClass> C </currentClass>
-  //      <method>
-  //         <classContainer> C </classContainer>
-  //         <methodName> F </methodName> 
-  //         <graph>... . => S1 |-> S2 </graph>
-  //      </method>            
-  //                                                  [structural]
-
-  // rule <k> methodControlFlow(S1:Stmt S2:Stmt) => methodControlFlow(S2) ... </k> 
-  //      <currentMethod> F </currentMethod>
-  //      <currentClass> C </currentClass>
-  //      <method>
-  //         <classContainer> C </classContainer>
-  //         <methodName> F </methodName> 
-  //         <graph>... . => S1 |-> S2 </graph>
-  //      </method>                                                        [structural]
-
-  // rule <k> methodControlFlow(S1:Stmt) => methodControlFlow(S1) ... </k>
-  //      <currentMethod> F </currentMethod>
-  //      <currentClass> C </currentClass>
-  //      <method>
-  //         <classContainer> C </classContainer>
-  //         <methodName> F </methodName> 
-  //         <graph> . => "start" |-> S1 </graph>
-  //      </method>                                                        [structural]
-
-  // rule <k> methodControlFlow(S1:Stmt) => . ... </k>
-  //      <currentMethod> F </currentMethod>
-  //      <currentClass> C </currentClass>
-  //      <method>
-  //         <classContainer> C </classContainer>
-  //         <methodName> F </methodName> 
-  //         <graph>... . => S1 |-> "exit" </graph>
-  //      </method>                                                        [structural]
 
 /*@ \subsubsection{Method declaration}
 

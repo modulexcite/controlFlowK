@@ -197,14 +197,11 @@ the expected type. */
                   </cfg>
                   <currentMethod> .K </currentMethod>
                   <currentClass> .K </currentClass>
-                  <buffers>
-                    <buffer multiplicity="*">
-                      <idBlock> .K </idBlock>
-                      <prevNode> .List </prevNode>
-                      <exitNode> .List </exitNode>
-                      <code> .K </code>
-                    </buffer>
-                  </buffers>
+                  <buffer>
+                      <block> .K </block>
+                      <prevNodes> .List </prevNodes>
+                      <bufferstack> .List </bufferstack>
+                  </buffer>
                 </T>
 
 /*@ \subsection{Unchanged semantics from dynamically typed SIMPLE}
@@ -551,7 +548,7 @@ Like in untyped KOOL. */
 /*@ \subsubsection{Control Flow Generator}
 Like in untyped KOOL. */
 
-  rule <k> class Class1 extends Class2 { S } => generateFlow(S) ~> "cleanBuffers" ...</k>
+  rule <k> class Class1 extends Class2 { S } => generateFlow(S)  ...</k>
        <currentClass> _ => Class1 </currentClass>
        <classes>... (. => <class>
                             <className> Class1 </className>
@@ -560,141 +557,117 @@ Like in untyped KOOL. */
                         </class>)
        ...</classes>  [structural]
 
+  // rule <block> for(Start Cond; Step) {S:Stmts} => Start while(Cond){S Step;} ... </block> [macro]
+
+
+  syntax K ::=  (BufferCellFragment)  
   syntax K ::= generateFlow(Stmts)
   syntax Stmt ::= "startFlow" | "exitFlow"
-  syntax K ::= generateBlock(Stmt, Stmts, Stmts)  
-  syntax K ::= generating(Stmts)     
+  syntax K ::= newBlock(Stmt, Stmts)  
+  syntax K ::= "pushBlock2Stack" 
+  syntax K ::= "erasePrevNodes"
+  syntax K ::= generateBlock(Stmt, Stmts)  
+  syntax K ::= "generatingFlow"     
+  syntax K ::= addToFlow(Stmt)     
+
   syntax K ::= changeBlock(Stmt, Stmt, Stmts) 
   syntax K ::= connectBlocks(Stmt, Stmt)    
-  syntax K ::= finalizeFlow(Stmts)
-  syntax K ::= "cleanBuffers"
-
+  syntax K ::= "connect2Exit"
 
   rule <k> generateFlow(S1:Stmts S2:Stmts) => generateFlow(S1) ~> generateFlow(S2) ...</k> [structural]
 
+// pass over the class fields 
   rule <k> generateFlow(T:Type E:Exps;) => . ...</k> [structural]
 
-  rule <k> generateFlow(T:Type F:Id(Ps:Params) { S }) => generateBlock(startFlow, S, S) ~> finalizeFlow(S) ... </k> 
-        <currentMethod> _ => F </currentMethod>
-        <currentClass> C </currentClass>
+  rule <k> generateFlow(T:Type F:Id(Ps:Params) { S }) => newBlock(startFlow,  S) ~> "connect2Exit" ... </k> 
+       <currentMethod> _ => F </currentMethod>
+       <currentClass> C </currentClass> 
        <cfg>... . => 
-          <method>
+          <method> 
+            <classContainer> C </classContainer> 
+            <methodName> F </methodName> 
+            <graph> .Map </graph> 
+          </method> 
+       </cfg>
+       <bufferstack> _ => . </bufferstack>
+
+  rule <k> newBlock(PrevNode:Stmt, All:Stmts) =>  "pushBlock2Stack" ~> generateBlock(PrevNode, All) ...</k>
+
+  rule <k> generateBlock(PrevNode:Stmt, All:Stmts)  => "generatingFlow" ...</k>
+       <buffer>
+          <block> _ => All </block>
+          <prevNodes> _ => ListItem(PrevNode) </prevNodes>
+          ...
+       </buffer>
+
+// store previous block in a stack
+  rule <k> "pushBlock2Stack" => . ...</k>
+       <buffer>
+          Rest 
+          <bufferstack>. => ListItem((Rest)) ...</bufferstack>
+       </buffer>
+  rule <k> "erasePrevNodes" => . ...</k>
+       <prevNodes> _ => . </prevNodes>
+
+
+  rule <k> "generatingFlow" ...</k>
+       <block> {S} => S ...</block>
+
+       
+  rule <k> "generatingFlow" => addToFlow(E;) ~> "erasePrevNodes" ~> newBlock(E; ,Block1) ~> newBlock(E; , Block2) ~> "generatingFlow" ...</k>
+       <block> if ( E:Exp ) {Block1:Stmts} else {Block2:Stmts} => .  ...</block>
+
+  rule <k> "generatingFlow" => addToFlow(E;) ~> "erasePrevNodes" ~> newBlock(E; ,Block1) ~> "generatingFlow" ...</k>
+       <block> if ( E:Exp ) {Block1:Stmts} else {} => .  ...</block>
+
+  rule <k> "generatingFlow" => addToFlow(E;) ~> "erasePrevNodes" ~> newBlock(E; ,Block1) ~> "generatingFlow" ...</k>
+       <block> while ( E:Exp ) {Block1:Stmts} => E;  ...</block>
+
+// // Connecting all prev nodes to stmt!
+  rule <k> "generatingFlow" => addToFlow(S) ~> "generatingFlow" ...</k>
+       <block> S:Stmt => . ...</block>
+       <prevNodes>... ListItem(_)</prevNodes>
+
+
+
+  rule <k> addToFlow(S:Stmt) ...</k>
+       <currentClass> C </currentClass>
+       <currentMethod> F </currentMethod>
+       <buffer>
+            <prevNodes>... ListItem(PreviousStmt) => .</prevNodes>
+            ... 
+       </buffer>
+       <method>
             <classContainer> C </classContainer>
             <methodName> F </methodName> 
-            <graph> .Map </graph>
-          </method>
-       </cfg>        
-
-  rule <k> generateBlock(PreviousStmt:Stmt, FirstStatement:Stmts Other:Stmts, All:Stmts) =>  generating(FirstStatement) ...</k>
-       <buffers>... . => 
-          <buffer>
-            <idBlock> FirstStatement </idBlock>
-            <code> All </code>
-            <prevNode> ListItem(PreviousStmt) </prevNode> 
-            <exitNode> .List </exitNode>
-          </buffer>
-       </buffers> 
-
-  rule <k> generateBlock(PreviousStmt:Stmt, FirstStatement:Stmts, All:Stmts) =>  generating(FirstStatement) ...</k>
-       <buffers>... . => 
-          <buffer>
-            <idBlock> FirstStatement </idBlock>
-            <code> All </code>
-            <prevNode> ListItem(PreviousStmt) </prevNode> 
-            <exitNode> .List </exitNode>
-          </buffer>
-       </buffers> 
-
-
-    
-  rule <k> generating(Id) ...</k>
-       <currentMethod> F </currentMethod>
-       <currentClass> C </currentClass>
-       <buffer>
-            <idBlock> Id </idBlock>
-            <code> if ( E:Exp ) {Block1:Stmts} else {Block2:Stmts} ...</code>
-            <prevNode> ... ListItem(PreviousStmt) => .</prevNode>
-            ... 
-       </buffer>
-       <method>
-        <classContainer> C </classContainer>
-        <methodName> F </methodName> 
-        <graph>... . => PreviousStmt |-> E </graph>
-       </method>
-
-  rule <k> generating(Id) => generateBlock(E; , E; E; , Block1) ~> changeBlock(E;, E; , Block2) ~> connectBlocks(E;, Id) ...</k>
-       <currentMethod> F </currentMethod>
-       <currentClass> C </currentClass>
-       <buffer>
-            <idBlock> Id </idBlock>
-            <code> if ( E:Exp ) {Block1:Stmts} else {Block2:Stmts} => .  ...</code>
-            ... 
-       </buffer>
-
-
-
-  rule <k> generating(Id) ...</k>
-       <currentMethod> F </currentMethod>
-       <currentClass> C </currentClass>
-       <buffer>
-            <idBlock> Id </idBlock>
-            <code> S:Stmt ...</code>
-            <prevNode>... ListItem(PreviousStmt) => .</prevNode>
-            ... 
-       </buffer>
-       <method>
-        <classContainer> C </classContainer>
-        <methodName> F </methodName> 
-        <graph>... . => PreviousStmt |-> S </graph>
-       </method>
+            <graph>... . => PreviousStmt |-> S </graph>
+       </method>       
  
-   rule <k> generating(Id) ...</k>
+ // After connecting all prev nodes to stmt, lets proceed by putting stmt as a prev node. 
+  rule <k> addToFlow(S:Stmt) => . ...</k>
+       <prevNodes> . => ListItem(S) </prevNodes>
+
+  rule <k> "generatingFlow" ...</k>
+       <block> .K</block>
+       <prevNodes>... ListItem(PreviousStmt) => . </prevNodes>
+       <bufferstack> ListItem((<prevNodes>... . => ListItem(PreviousStmt) </prevNodes> _)) _ </bufferstack>
+  
+    rule <k> "generatingFlow" => "recoverPreviousBlock" ...</k>
+       <block> .K</block>
+       <prevNodes> .List </prevNodes>
+  
+  rule <k> "recoverPreviousBlock" => . ...</k>
+       <buffer>
+          (_ => Rest) 
+          <bufferstack> ListItem((Rest)) => . ...</bufferstack>
+       </buffer>
+
+  rule <k> "connect2Exit" ...</k>
        <currentMethod> F </currentMethod>
        <currentClass> C </currentClass>
        <buffer>
-            <idBlock> Id </idBlock>
-            <code> S:Stmt => . ...</code>
-            <prevNode> . => ListItem(S) </prevNode>
-            ... 
-       </buffer>
-
-
-    rule <k> changeBlock(PreviousStmt, Id, Code:Stmts) => generating(Id) ...</k>
-         <buffer>
-            <idBlock> Id </idBlock>
-            <code> . => Code </code>
-            <prevNode> _ => ListItem(PreviousStmt) </prevNode>
-            ...
-         </buffer>        
-
-    rule <k> connectBlocks(Id1, Id2) => generating(Id2) ...</k>
-         <buffer>
-            <idBlock> Id1 </idBlock>
-            <exitNode> StatementList </exitNode>
-            ...
-         </buffer>   
-         <buffer>
-            <idBlock> Id2 </idBlock>
-            <prevNode> _ => StatementList </prevNode>
-            ...
-         </buffer> 
-
-
-  rule <k> generating(Id) => . ...</k>
-       <buffer>
-            <idBlock> Id </idBlock>
-            <code> .K</code>
-            <prevNode> PreviousStmt </prevNode>
-            <exitNode> . => PreviousStmt ...</exitNode> 
-       </buffer>
-
-  rule <k> finalizeFlow(S:Stmts Other:Stmts) ...</k>
-       <currentMethod> F </currentMethod>
-       <currentClass> C </currentClass>
-       <buffer>
-            <idBlock> S </idBlock>
-            <code> .K</code>
-            <exitNode> ... ListItem(ExitStmt) => .</exitNode>
+            <block> .K</block>
+            <prevNodes> ... ListItem(ExitStmt) => .</prevNodes>
             ...
        </buffer>
        <method>
@@ -703,41 +676,12 @@ Like in untyped KOOL. */
         <graph>... . => ExitStmt |-> exitFlow </graph>
        </method>
 
-  rule <k> finalizeFlow(S:Stmts Other:Stmts) => . ...</k>
-       <buffer>
-            <idBlock> S </idBlock>
-            <code> .K</code>
-            <exitNode> .List </exitNode> 
-            ...
-       </buffer>
+  rule <k> "connect2Exit" => . ...</k>
+       <block> .K</block>
+       <prevNodes> .List </prevNodes> 
+       
 
-  rule <k> finalizeFlow(S:Stmts) ...</k>
-       <currentMethod> F </currentMethod>
-       <currentClass> C </currentClass>
-       <buffer>
-            <idBlock> S </idBlock>
-            <code> .K</code>
-            <exitNode> ... ListItem(ExitStmt) => .</exitNode>
-            ...
-       </buffer>
-       <method>
-        <classContainer> C </classContainer>
-        <methodName> F </methodName> 
-        <graph>... . => ExitStmt |-> exitFlow </graph>
-       </method>
-
-  rule <k> finalizeFlow(S:Stmts) => . ...</k>
-       <buffer>
-            <idBlock> S </idBlock>
-            <code> .K</code>
-            <exitNode> .List </exitNode> 
-            ...
-       </buffer>
-
-  rule <k> "cleanBuffers" => . ...</k>
-       <buffers> _ => . </buffers>
-
-  rule <code> S1:Stmts S2:Stmts => S1 ~> S2  ...</code> [structural]
+  rule <block> S1:Stmts S2:Stmts => S1 ~> S2  ...</block> [structural]
 
 
 
